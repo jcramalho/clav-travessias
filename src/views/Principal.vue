@@ -58,7 +58,7 @@
                         <v-toolbar-title>Resultados</v-toolbar-title>
                     </v-toolbar>
                     <v-card-text>
-                        <v-layout wrap v-if="resultadosReady">
+                        <v-layout wrap v-if="listaResultados.length > 0">
                             <v-flex xs12>
                                 <v-data-table
                                     :headers="resultadosHeaders"
@@ -87,6 +87,22 @@
                         <v-layout v-else>
                             <p>A calcular a travessia...</p>
                         </v-layout>
+
+                        <v-snackbar
+                            v-model="fechoCalculado"
+                            :color="'success'"
+                            :timeout="60000"
+                        >
+                            Cálculo terminado: {{ listaResultados.length }} processos.
+                            Pode realizar outro cálculo.
+                            <v-btn
+                                dark flat
+                                @click="fechoCalculado = false"
+                            >
+                                Fechar
+                            </v-btn>
+                        </v-snackbar>
+
                     </v-card-text>
                 </v-card>
             </v-flex>
@@ -106,6 +122,7 @@ export default {
             listaProcReady: false,
             listaResultados: [],
             resultadosReady: false,
+            fechoCalculado: false,
             panelHeaderColor: "indigo accent-4",
             resultadosHeaders: [
                 { text: 'Código', align: 'left', value: 'codigo'},
@@ -123,6 +140,8 @@ export default {
                 {text: "6 - Vizinhos a 6 relações de distância", value: 6},
                 {text: "7 - Vizinhos a 7 relações de distância", value: 7},
                 {text: "8 - Vizinhos a 8 relações de distância", value: 8},
+                {text: "9 - Vizinhos a 9 relações de distância", value: 9},
+                {text: "10 - Vizinhos a 10 relações de distância", value: 10},
                 {text: "Todos - irá tentar calcular o alcance total", value: 1000}
             ],
             stackProc: [],
@@ -205,6 +224,7 @@ export default {
         calcRel: async function(){
             try{
                 this.listaResultados = [];
+                this.fechoCalculado = false;
                 this.stackProc = [];
                 this.visitados = [];
                 this.stackProc.push({listaProc: [], nivel: 1});
@@ -214,7 +234,7 @@ export default {
                 var p;
                 var stop = false;
 
-                while(profundidade <= this.niveis){
+                while((profundidade <= this.niveis) && (this.stackProc[profundidade-1].listaProc.length > 0)){
                     this.stackProc.push({listaProc: [], nivel: profundidade+1});
                     for(var i=0; i < this.stackProc[profundidade-1].listaProc.length; i++){
                         p = this.stackProc[profundidade-1].listaProc[i];
@@ -245,6 +265,7 @@ export default {
                         return a.codigo.localeCompare(b.codigo);
                 });
 
+                this.fechoCalculado = true;
                 this.resultadosReady = true;
             }
             catch(erro){
