@@ -1,1 +1,1 @@
-export const host = "http://localhost:7778";
+export const host = "http://clav-test.di.uminho.pt";
