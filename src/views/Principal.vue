@@ -78,6 +78,7 @@
                                             <td>{{ props.item.codigo }}</td>
                                             <td> {{ props.item.titulo }} </td>
                                             <td> {{ props.item.relacao }} </td>
+                                            <td> {{ props.item.nivel }} </td>
                                         </tr>
                                     </template>
                                 </v-data-table>
@@ -109,17 +110,23 @@ export default {
             resultadosHeaders: [
                 { text: 'Código', align: 'left', value: 'codigo'},
                 { text: 'Título', value: 'titulo' },
-                { text: 'Relação', value: 'relacao' }
+                { text: 'Relação', value: 'relacao' },
+                { text: 'Distância', value: 'nivel'}
             ],
             niveis: 0,
             listaNiveis: [
                 {text: "1 - Vizinhos imediatos", value: 1},
                 {text: "2 - Vizinhos a 2 relações de distância", value: 2},
                 {text: "3 - Vizinhos a 3 relações de distância", value: 3},
+                {text: "4 - Vizinhos a 4 relações de distância", value: 4},
                 {text: "5 - Vizinhos a 5 relações de distância", value: 5},
+                {text: "6 - Vizinhos a 6 relações de distância", value: 6},
+                {text: "7 - Vizinhos a 7 relações de distância", value: 7},
+                {text: "8 - Vizinhos a 8 relações de distância", value: 8},
                 {text: "Todos - irá tentar calcular o alcance total", value: 1000}
             ],
-            stackProc: []
+            stackProc: [],
+            visitados: []
         }
     },
 
@@ -144,14 +151,15 @@ export default {
             }
         },
 
-        loadComplementares: async function(p){
+        loadComplementares: async function(p, profundidade){
             try{
                 var response = await axios.get(lhost + "/api/classes/c" + p + "/procRel/eComplementarDe");
                 return response.data.map(function (item) {
                     return {
                         codigo: item.codigo,
                         titulo: item.titulo,
-                        relacao: "eComplementarDe"
+                        relacao: "eComplementarDe",
+                        nivel: profundidade
                     }
                     });
             }
@@ -160,14 +168,15 @@ export default {
             }
         },
 
-        loadSintetizados: async function(p){
+        loadSintetizados: async function(p, profundidade){
             try{
                 var response = await axios.get(lhost + "/api/classes/c" + p + "/procRel/eSintetizadoPor");
                 return response.data.map(function (item) {
                     return {
                         codigo: item.codigo,
                         titulo: item.titulo,
-                        relacao: "eSintetizadoPor"
+                        relacao: "eSintetizadoPor",
+                        nivel: profundidade
                     }
                 });
             }
@@ -176,14 +185,15 @@ export default {
             }
         },
 
-        loadSuplementares: async function(p){
+        loadSuplementares: async function(p, profundidade){
             try{
                 var response = await axios.get(lhost + "/api/classes/c" + p + "/procRel/eSuplementoPara");
                 return response.data.map(function (item) {
                     return {
                         codigo: item.codigo,
                         titulo: item.titulo,
-                        relacao: "eSuplementoPara"
+                        relacao: "eSuplementoPara",
+                        nivel: profundidade
                     }
                 });
             }
@@ -194,31 +204,41 @@ export default {
 
         calcRel: async function(){
             try{
+                this.listaResultados = [];
                 this.stackProc = [];
+                this.visitados = [];
                 this.stackProc.push({listaProc: [], nivel: 1});
                 this.stackProc[0].listaProc.push(this.processo);
+                this.visitados.push(this.processo);  // Processo inicial está no índice 0
                 var profundidade = 1;
                 var p;
+                var stop = false;
 
                 while(profundidade <= this.niveis){
                     this.stackProc.push({listaProc: [], nivel: profundidade+1});
                     for(var i=0; i < this.stackProc[profundidade-1].listaProc.length; i++){
                         p = this.stackProc[profundidade-1].listaProc[i];
 
-                        var comp = await this.loadComplementares(p);
-                        this.listaResultados = this.listaResultados.concat(comp);
-                        this.stackProc[profundidade].listaProc = this.stackProc[profundidade].listaProc.concat(this.filtra(comp));
+                        var comp = await this.loadComplementares(p, profundidade);
+                        if(comp.length > 0){
+                            this.listaResultados = await this.juntaNovos(this.listaResultados, comp);
+                            this.stackProc[profundidade].listaProc = this.stackProc[profundidade].listaProc.concat( await this.juntaNovosVisitas(this.visitados, this.filtra(comp), "comp"));
+                        }
+                        
 
-                        var sint = await this.loadSintetizados(p);
-                        this.listaResultados = this.listaResultados.concat(sint);
-                        this.stackProc[profundidade].listaProc = this.stackProc[profundidade].listaProc.concat(this.filtra(sint));
+                        var sint = await this.loadSintetizados(p, profundidade);
+                        if(sint.length > 0){
+                            this.listaResultados = await this.juntaNovos(this.listaResultados, sint);
+                            this.stackProc[profundidade].listaProc = this.stackProc[profundidade].listaProc.concat( await this.juntaNovosVisitas(this.visitados, this.filtra(sint), "sint"));
+                        }
 
-                        var sup = await this.loadSuplementares(p);
-                        this.listaResultados = this.listaResultados.concat(sup); 
-                        this.stackProc[profundidade].listaProc = this.stackProc[profundidade].listaProc.concat(this.filtra(sup));
+                        var sup = await this.loadSuplementares(p, profundidade);
+                        if(sup.length > 0){
+                            this.listaResultados = await this.juntaNovos(this.listaResultados, sup);
+                            this.stackProc[profundidade].listaProc = this.stackProc[profundidade].listaProc.concat( await this.juntaNovosVisitas(this.visitados, this.filtra(sup), "sup"));
+                        }
                     }
                     profundidade++;
-                    alert(JSON.stringify(this.stackProc))
                 }
                 
                 this.listaResultados.sort(function (a, b) {
@@ -236,6 +256,35 @@ export default {
             return lproc.map(function(p){
                 return p.codigo
             })
+        },
+
+        juntaNovosVisitas: async function(visitados, candidatos, relacao){
+            var res = [];
+            for(var i=0; i < candidatos.length; i++){
+                var index = visitados.indexOf(candidatos[i]);
+                if(index == -1){
+                    visitados.push(candidatos[i]);
+                    res.push(candidatos[i]);
+                }
+                else if((index == 0) && (relacao != "comp")){
+                    alert("Circularidade!!!");
+                }
+            }
+            return res;
+        },
+
+        juntaNovos: async function(existentes, candidatos){
+            for(var i=0; i < candidatos.length; i++){
+                if(existentes.length > 0){
+                    var index = existentes.findIndex(p => p.codigo == candidatos[i].codigo);
+                    if(index == -1){
+                        existentes.push(candidatos[i]);
+                    }
+                }
+                else
+                    existentes.push(candidatos[i]);
+            }
+            return existentes;
         },
 
         go: function(url){
