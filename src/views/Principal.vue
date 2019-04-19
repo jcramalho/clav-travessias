@@ -56,6 +56,10 @@
                 <v-card>
                     <v-toolbar :color="panelHeaderColor" dark>
                         <v-toolbar-title>Resultados</v-toolbar-title>
+                        <v-spacer></v-spacer>
+                        <v-toolbar-items class="hidden-sm-and-down">
+                            <v-btn flat>Nível de profundidade: {{ profundidade }}</v-btn>
+                        </v-toolbar-items>
                     </v-toolbar>
                     <v-card-text>
                         <v-layout wrap v-if="listaResultados.length > 0">
@@ -122,6 +126,7 @@ export default {
             listaProcReady: false,
             listaResultados: [],
             resultadosReady: false,
+            profundidade: 0,
             fechoCalculado: false,
             panelHeaderColor: "indigo accent-4",
             resultadosHeaders: [
@@ -230,35 +235,35 @@ export default {
                 this.stackProc.push({listaProc: [], nivel: 1});
                 this.stackProc[0].listaProc.push(this.processo);
                 this.visitados.push(this.processo);  // Processo inicial está no índice 0
-                var profundidade = 1;
+                this.profundidade = 1;
                 var p;
                 var stop = false;
 
-                while((profundidade <= this.niveis) && (this.stackProc[profundidade-1].listaProc.length > 0)){
-                    this.stackProc.push({listaProc: [], nivel: profundidade+1});
-                    for(var i=0; i < this.stackProc[profundidade-1].listaProc.length; i++){
-                        p = this.stackProc[profundidade-1].listaProc[i];
+                while((this.profundidade <= this.niveis) && (this.stackProc[this.profundidade-1].listaProc.length > 0)){
+                    this.stackProc.push({listaProc: [], nivel: this.profundidade+1});
+                    for(var i=0; i < this.stackProc[this.profundidade-1].listaProc.length; i++){
+                        p = this.stackProc[this.profundidade-1].listaProc[i];
 
-                        var comp = await this.loadComplementares(p, profundidade);
+                        var comp = await this.loadComplementares(p, this.profundidade);
                         if(comp.length > 0){
                             this.listaResultados = await this.juntaNovos(this.listaResultados, comp);
-                            this.stackProc[profundidade].listaProc = this.stackProc[profundidade].listaProc.concat( await this.juntaNovosVisitas(this.visitados, this.filtra(comp), "comp"));
+                            this.stackProc[this.profundidade].listaProc = this.stackProc[this.profundidade].listaProc.concat( await this.juntaNovosVisitas(this.visitados, this.filtra(comp), "comp"));
                         }
                         
 
-                        var sint = await this.loadSintetizados(p, profundidade);
+                        var sint = await this.loadSintetizados(p, this.profundidade);
                         if(sint.length > 0){
                             this.listaResultados = await this.juntaNovos(this.listaResultados, sint);
-                            this.stackProc[profundidade].listaProc = this.stackProc[profundidade].listaProc.concat( await this.juntaNovosVisitas(this.visitados, this.filtra(sint), "sint"));
+                            this.stackProc[this.profundidade].listaProc = this.stackProc[this.profundidade].listaProc.concat( await this.juntaNovosVisitas(this.visitados, this.filtra(sint), "sint"));
                         }
 
-                        var sup = await this.loadSuplementares(p, profundidade);
+                        var sup = await this.loadSuplementares(p, this.profundidade);
                         if(sup.length > 0){
                             this.listaResultados = await this.juntaNovos(this.listaResultados, sup);
-                            this.stackProc[profundidade].listaProc = this.stackProc[profundidade].listaProc.concat( await this.juntaNovosVisitas(this.visitados, this.filtra(sup), "sup"));
+                            this.stackProc[this.profundidade].listaProc = this.stackProc[this.profundidade].listaProc.concat( await this.juntaNovosVisitas(this.visitados, this.filtra(sup), "sup"));
                         }
                     }
-                    profundidade++;
+                    this.profundidade++;
                 }
                 
                 this.listaResultados.sort(function (a, b) {
