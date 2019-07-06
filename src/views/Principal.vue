@@ -42,7 +42,21 @@
 
                         <v-layout>
                             <v-flex>
-                                <v-btn round color="info" @click="calcRel">Calcular</v-btn>
+                                <v-btn round color="info" @click="calcRel(processo); calculoTotal = false">Calcular</v-btn>
+                            </v-flex>
+                        </v-layout>
+
+                        <v-layout>
+                            <v-flex>
+                                <v-btn round color="info" @click="calcRelTotal(); calculoTotal = true">Calcular todas as travessias de todos os processos</v-btn>
+                            </v-flex>
+                        </v-layout>
+                        
+                        <v-layout v-if="aCalcular">
+                            <v-flex>
+                                <v-btn round color="error" @click="cancelar()"
+                                    >Cancelar Calculo</v-btn
+                                >
                             </v-flex>
                         </v-layout>
 
@@ -53,7 +67,49 @@
 
         <v-layout row wrap justify-center>
             <v-flex xs12>
-                <v-card>
+                <v-card v-if="calculoTotal">
+                    <v-toolbar :color="panelHeaderColor" dark>
+                        <v-toolbar-title>Todos os Resultados</v-toolbar-title>
+                        <v-spacer></v-spacer>
+                        <v-toolbar-items class="hidden-sm-and-down">
+                            <v-btn flat>Nível de profundidade máxima</v-btn>
+                        </v-toolbar-items>
+                    </v-toolbar>
+                    <v-card-text>
+                        <v-layout v-if="!fechoTotalCalculado">
+                            <v-flex xs12>
+                                <p>A calcular a travessia...    Código: {{ processo }}</p>
+                            </v-flex>
+                        </v-layout>
+                        <v-layout v-if="!fechoTotalCalculado">
+                            <v-flex xs12>
+                                {{ resultadosJSON }}
+                            </v-flex>
+                        </v-layout>
+                        <v-layout wrap v-if="fechoTotalCalculado">
+                            <v-flex xs12>
+                                {{ resultadosJSON }}
+                            </v-flex>
+                        </v-layout>
+
+                        <v-snackbar
+                            v-model="fechoTotalCalculado"
+                            :color="'success'"
+                            :timeout="60000"
+                        >
+                            Cálculo total terminado:
+                            Pode realizar outro cálculo.
+                            <v-btn
+                                dark flat
+                                @click="fechoTotalCalculado = false"
+                            >
+                                Fechar
+                            </v-btn>
+                        </v-snackbar>
+
+                    </v-card-text>
+                </v-card>
+                <v-card v-else>
                     <v-toolbar :color="panelHeaderColor" dark>
                         <v-toolbar-title>Resultados</v-toolbar-title>
                         <v-spacer></v-spacer>
@@ -150,7 +206,14 @@ export default {
                 {text: "Todos - irá tentar calcular o alcance total", value: 1000}
             ],
             stackProc: [],
-            visitados: []
+            visitados: [],
+            calculoTotal: false,
+            fechoTotalCalculado: false,
+            resultadosJSON: [],
+            aCalcular: false,
+            // Todos os processos já visitados
+            procVisitados: [],
+            travessias: [],
         }
     },
 
@@ -226,15 +289,16 @@ export default {
             }
         },
 
-        calcRel: async function(){
+        calcRel: async function(processo){
             try{
+                console.log(processo)
                 this.listaResultados = [];
                 this.fechoCalculado = false;
                 this.stackProc = [];
                 this.visitados = [];
                 this.stackProc.push({listaProc: [], nivel: 1});
-                this.stackProc[0].listaProc.push(this.processo);
-                this.visitados.push(this.processo);  // Processo inicial está no índice 0
+                this.stackProc[0].listaProc.push(processo);
+                this.visitados.push(processo);  // Processo inicial está no índice 0
                 this.profundidade = 1;
                 var p;
                 var stop = false;
@@ -243,6 +307,8 @@ export default {
                     this.stackProc.push({listaProc: [], nivel: this.profundidade+1});
                     for(var i=0; i < this.stackProc[this.profundidade-1].listaProc.length; i++){
                         p = this.stackProc[this.profundidade-1].listaProc[i];
+
+                        console.log(p)
 
                         var comp = await this.loadComplementares(p, this.profundidade);
                         if(comp.length > 0){
@@ -264,6 +330,7 @@ export default {
                         }
                     }
                     this.profundidade++;
+
                 }
                 
                 this.listaResultados.sort(function (a, b) {
@@ -272,6 +339,7 @@ export default {
 
                 this.fechoCalculado = true;
                 this.resultadosReady = true;
+                return this.listaResultados
             }
             catch(erro){
                 console.log(erro);
@@ -291,9 +359,6 @@ export default {
                 if(index == -1){
                     visitados.push(candidatos[i]);
                     res.push(candidatos[i]);
-                }
-                else if((index == 0) && (relacao != "comp")){
-                    alert("Circularidade!!!");
                 }
             }
             return res;
@@ -315,6 +380,30 @@ export default {
 
         go: function(url){
             this.$router.push(url);
+        },
+
+        calcRelTotal: async function(){
+            this.niveis = 1000;
+            for( var i = 0; i < this.listaProcessos.length; i++ ){
+                this.aCalcular = true
+                this.processo = this.listaProcessos[i].value
+                var resultado = await this.calcRel(this.listaProcessos[i].value)
+                var lista = [];
+                for( var j = 0; j < resultado.length; j ++){
+                    lista.push(resultado[j].codigo)
+                }
+                this.travessias[this.processo] = lista;
+                this.resultadosJSON.push({
+                    processo: this.processo,
+                    travessia: lista
+                }) 
+                console.log(this.travessias)
+            }
+            this.fechoTotalCalculado = true; 
+            this.aCalcular = false;
+        },
+        cancelar: function(){
+            window.location.reload()
         }
     },
 
