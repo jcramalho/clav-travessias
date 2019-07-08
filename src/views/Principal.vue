@@ -298,7 +298,6 @@ export default {
 
         calcRel: async function(processo){
             try{
-                console.log(processo)
                 this.listaResultados = [];
                 this.fechoCalculado = false;
                 this.stackProc = [];
@@ -404,7 +403,7 @@ export default {
                     processo: this.processo,
                     travessia: lista
                 }) 
-                console.log(this.travessias)
+                // console.log(this.travessias)
             }
             this.fechoTotalCalculado = true; 
             this.aCalcular = false;
