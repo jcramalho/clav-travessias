@@ -48,7 +48,7 @@
 
                         <v-layout>
                             <v-flex>
-                                <v-btn round color="info" @click="calcRelTotal(); calculoTotal = true">Calcular todas as travessias de todos os processos</v-btn>
+                                <v-btn round color="info" @click="calcRelTotal(); writeJSON(); calculoTotal = true">Calcular todas as travessias de todos os processos</v-btn>
                             </v-flex>
                         </v-layout>
                         
@@ -57,6 +57,12 @@
                                 <v-btn round color="error" @click="cancelar()"
                                     >Cancelar Calculo</v-btn
                                 >
+                            </v-flex>
+                        </v-layout>
+
+                        <v-layout v-if="fechoTotalCalculado">
+                            <v-flex>
+                                <v-btn round color="info" @click="writeJSON()">Enviar para API de dados</v-btn>
                             </v-flex>
                         </v-layout>
 
@@ -173,6 +179,7 @@
 <script>
 const lhost = require('@/config/global').host
 const axios = require('axios')
+const fs = require('fs')
 
 export default {
     data () {
@@ -401,6 +408,9 @@ export default {
             }
             this.fechoTotalCalculado = true; 
             this.aCalcular = false;
+        },
+        writeJSON: async function(){
+            var response = await axios.post(lhost + "/api/travessias", this.resultadosJSON);
         },
         cancelar: function(){
             window.location.reload()
